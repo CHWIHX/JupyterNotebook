@@ -1,0 +1,84 @@
+# This workflow will do a clean install of node dependencies, cache/restore them, build the source code and run tests across different versions of node
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
+
+name: Build and Package
+
+env:
+    EXTENSION_NAME: vscode-azureml
+    VSTS_USERNAME: msdata
+    VSTS_REGISTRY_BASE_URL: msdata.pkgs.visualstudio.com/_packaging/vienna-shared-ux/npm/
+    VSTS_REGISTRY: msdata.pkgs.visualstudio.com/_packaging/vienna-shared-ux/npm/registry/
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+
+jobs:
+    Build:
+        name: Build VSIX
+        runs-on: ${{ matrix.os }}
+
+        strategy:
+            matrix:
+                node-version: [18.x]
+                # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+                os: [ubuntu-latest]
+
+        steps:
+            - uses: actions/checkout@v3
+            - name: Use Node.js ${{ matrix.node-version }}
+              uses: actions/setup-node@v3
+              with:
+                  node-version: ${{ matrix.node-version }}
+                  cache: 'npm'
+            - name: Setup VSTS Feed
+              run: |
+                  echo '; begin auth token' >> .npmrc
+                  echo '//${{ env.VSTS_REGISTRY }}:username=${{ env.VSTS_USERNAME }}' >> .npmrc
+                  echo '//${{ env.VSTS_REGISTRY }}:_password=${{ secrets.VSTS_NPM_AUTH_TOKEN }}' >> .npmrc
+                  echo '//${{ env.VSTS_REGISTRY }}:email=not-used@example.com' >> .npmrc
+                  echo '//${{ env.VSTS_REGISTRY_BASE_URL }}:username=${{ env.VSTS_USERNAME }}' >> .npmrc
+                  echo '//${{ env.VSTS_REGISTRY_BASE_URL }}:_password=${{ secrets.VSTS_NPM_AUTH_TOKEN }}' >> .npmrc
+                  echo '//${{ env.VSTS_REGISTRY_BASE_URL }}:email=not-used@example.com' >> .npmrc
+                  echo '; end auth token' >> .npmrc
+            - run: npm install
+            - run: npm run package -- -o vscode-ai-${{ github.run_id }}.vsix
+            - name: Upload a Build Artifact
+              uses: actions/upload-artifact@v3
+              with:
+                  # Artifact name
+                  name: ${{ env.EXTENSION_NAME }}-${{ github.run_id }}.vsix
+                  # A file, directory or wildcard pattern that describes what to upload
+                  path: ./${{ env.EXTENSION_NAME }}-${{ github.run_id }}.vsix
+                  # The desired behavior if no files are found using the provided path.
+
+    lint:
+        name: Lint
+        runs-on: ${{ matrix.os }}
+
+        strategy:
+            matrix:
+                node-version: [18.x]
+                # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+                os: [ubuntu-latest]
+
+        steps:
+            - uses: actions/checkout@v3
+            - name: Use Node.js ${{ matrix.node-version }}
+              uses: actions/setup-node@v3
+              with:
+                  node-version: ${{ matrix.node-version }}
+            - name: Setup VSTS Feed
+              run: |
+                  echo '; begin auth token' >> .npmrc
+                  echo '//${{ env.VSTS_REGISTRY }}:username=${{ env.VSTS_USERNAME }}' >> .npmrc
+                  echo '//${{ env.VSTS_REGISTRY }}:_password=${{ secrets.VSTS_NPM_AUTH_TOKEN }}' >> .npmrc
+                  echo '//${{ env.VSTS_REGISTRY }}:email=not-used@example.com' >> .npmrc
+                  echo '//${{ env.VSTS_REGISTRY_BASE_URL }}:username=${{ env.VSTS_USERNAME }}' >> .npmrc
+                  echo '//${{ env.VSTS_REGISTRY_BASE_URL }}:_password=${{ secrets.VSTS_NPM_AUTH_TOKEN }}' >> .npmrc
+                  echo '//${{ env.VSTS_REGISTRY_BASE_URL }}:email=not-used@example.com' >> .npmrc
+                  echo '; end auth token' >> .npmrc
+            - run: npm install
+            - run: npm run lint

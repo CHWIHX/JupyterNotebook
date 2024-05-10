@@ -1,0 +1,41 @@
+trigger:
+  tags:
+    include: ["*"]
+pr: none
+
+resources:
+  repositories:
+    - repository: templates
+      type: git
+      name: AzureMLExtensionEngineering
+      ref: main
+
+extends:
+  template: azure-pipelines/extension/1es/stable.yml@templates
+  parameters:
+    subfolder: azureml-language-server
+    apiScanSoftwareName: "Azure ML Extension"
+    apiScanSoftwareVersionNum: "$(Build.BuildId)"
+    buildSteps:
+      - script: npm ci
+        workingDirectory: azureml-language-server
+
+      - task: Bash@3
+        displayName: Update .npmrc file
+        inputs:
+          targetType: "inline"
+          script: |
+            echo '@azureml:registry=https://msdata.pkgs.visualstudio.com/_packaging/vienna-shared-ux/npm/registry/' >> .npmrc
+            echo '@azureml:always-auth=true' >> .npmrc
+            echo '' >> .npmrc
+            echo '; begin auth token' >> .npmrc
+            echo '//msdata.pkgs.visualstudio.com/_packaging/vienna-shared-ux/npm/registry/:username=msdata' >> .npmrc
+            echo '//msdata.pkgs.visualstudio.com/_packaging/vienna-shared-ux/npm/registry/:_password=$(NPM_TOKEN_BASE64_FOR_MSDATA)' >> .npmrc
+            echo '//msdata.pkgs.visualstudio.com/_packaging/vienna-shared-ux/npm/registry/:email=npm requires email to be set but doesn't use the value' >> .npmrc
+            echo '//msdata.pkgs.visualstudio.com/_packaging/vienna-shared-ux/npm/:username=msdata' >> .npmrc
+            echo '//msdata.pkgs.visualstudio.com/_packaging/vienna-shared-ux/npm/:_password=$(NPM_TOKEN_BASE64_FOR_MSDATA)' >> .npmrc
+            echo '//msdata.pkgs.visualstudio.com/_packaging/vienna-shared-ux/npm/:email=npm requires email to be set but doesn't use the value' >> .npmrc
+            echo '; end auth token' >> .npmrc
+
+      - script: npm run vscode:prepublish
+        displayName: Compile
